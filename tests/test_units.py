@@ -119,6 +119,23 @@ class TestEmbeddedOverlay(unittest.TestCase):
         self.assertEqual(_parse_overlay(b"MZ\x90\x00 plain exe"), {})
 
 
+class TestSaveLocal(unittest.TestCase):
+    def test_collision_gets_numbered_name(self):
+        import tempfile
+
+        from main import save_local
+
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td)
+            (d / "a.pdf").write_bytes(b"%PDF-old")
+            src = d / "incoming.pdf"
+            src.write_bytes(b"%PDF-new")
+            dest = save_local(src, "a.pdf", dest_dir=d)
+            self.assertEqual(dest.name, "a (2).pdf")
+            self.assertEqual(dest.read_bytes(), b"%PDF-new")
+            self.assertFalse(src.exists())  # move라 원본은 사라져야 함
+
+
 class TestFolderIdParse(unittest.TestCase):
     def test_url(self):
         self.assertEqual(

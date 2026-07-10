@@ -11,8 +11,10 @@ APP_NAME = "LodestarAgent"
 DEFAULTS = {
     "lodestar_url": "",          # 예: https://lodestar.example.com (끝 슬래시 없이)
     "api_token": "",             # Lodestar /token 페이지에서 발급한 lsk_ 토큰
-    "gdrive_folder_id": "",      # 업로드 대상 Google Drive 폴더 ID
-    "share_anyone": True,        # 업로드 후 '링크가 있는 모든 사용자 보기' 부여
+    # 선택 — 비우면(기본) PDF를 exe 폴더에 저장한다. exe를 구글 드라이브 동기
+    # 폴더에 두면 그 자체로 업로드 완성. 값을 넣으면 기존 Drive API 업로드 모드.
+    "gdrive_folder_id": "",
+    "share_anyone": True,        # (Drive API 모드) '링크가 있는 모든 사용자 보기' 부여
     "poll_interval_sec": 20,
     "agent_id": socket.gethostname(),
     "unpaywall_email": "",       # OA 폴백용(선택). 비우면 Unpaywall 스킵.
@@ -85,7 +87,8 @@ def save(cfg: dict) -> None:
 
 
 def is_configured(cfg: dict) -> bool:
-    return bool(cfg.get("lodestar_url") and cfg.get("api_token") and cfg.get("gdrive_folder_id"))
+    # Drive 폴더는 선택(비우면 로컬 저장 모드) — URL·토큰만 필수.
+    return bool(cfg.get("lodestar_url") and cfg.get("api_token"))
 
 
 # ---------- 로그 ----------

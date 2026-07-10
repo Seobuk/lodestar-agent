@@ -41,7 +41,9 @@ class Lodestar:
     def report_done(self, req_id: str, title: str, file_url: str, file_name: str) -> None:
         self._post({
             "action": "report", "id": req_id, "agentId": self.agent_id,
-            "status": "done", "title": title, "fileUrl": file_url, "fileName": file_name,
+            "status": "done", "title": title,
+            "fileUrl": file_url or None,  # 로컬 저장 모드면 링크 없음
+            "fileName": file_name,
         })
 
     def report_failed(self, req_id: str, error: str) -> None:

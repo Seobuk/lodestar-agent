@@ -39,6 +39,11 @@ def _validate(cfg: dict) -> list[str]:
         msgs.append("Lodestar 토큰: OK" if ok else "Lodestar 토큰: 실패(401)")
     except Exception as e:
         msgs.append(f"Lodestar 접속 실패: {e}")
+    if not cfg.get("gdrive_folder_id"):
+        # 기본 모드 — PDF를 exe 폴더에 저장. exe를 구글 드라이브 동기 폴더에
+        # 두면 데스크톱 클라이언트가 자동 업로드하므로 자격증명이 필요 없다.
+        msgs.append("저장 위치: OK (exe 폴더 — 드라이브 동기 폴더에 두면 자동 업로드)")
+        return msgs
     st = credentials_status()
     if st == "missing":
         msgs.append(f"Drive 자격증명 없음 → {C.config_dir()} 에 service_account.json 배치 필요")
@@ -64,7 +69,7 @@ def run_wizard() -> dict:
     fields = [
         ("Lodestar URL", "lodestar_url", "https://lodestar-…vercel.app"),
         ("API 토큰 (lsk_…)", "api_token", "/token 페이지에서 발급"),
-        ("Drive 폴더 URL/ID", "gdrive_folder_id", "https://drive.google.com/drive/folders/…"),
+        ("Drive 폴더 URL/ID (선택)", "gdrive_folder_id", "비우면 exe 폴더에 저장 (권장)"),
         ("Unpaywall 이메일(선택)", "unpaywall_email", "OA 폴백용"),
     ]
     entries = {}
@@ -101,7 +106,7 @@ def run_wizard() -> dict:
         cfg["share_anyone"] = share_var.get()
         cfg["autostart"] = auto_var.get()
         if not C.is_configured(cfg):
-            messagebox.showwarning("입력 부족", "URL·토큰·폴더는 필수입니다.")
+            messagebox.showwarning("입력 부족", "URL과 토큰은 필수입니다.")
             return
         _apply(cfg)
         msgs = _validate(cfg)
@@ -123,7 +128,7 @@ def _console_wizard(cfg: dict) -> dict:
     print(f"[설정] 자격증명 폴더: {C.config_dir()} (service_account.json 배치)")
     for key, prompt in [("lodestar_url", "Lodestar URL"),
                         ("api_token", "API 토큰(lsk_)"),
-                        ("gdrive_folder_id", "Drive 폴더 URL/ID"),
+                        ("gdrive_folder_id", "Drive 폴더 URL/ID (선택, 비우면 exe 폴더 저장)"),
                         ("unpaywall_email", "Unpaywall 이메일(선택)")]:
         cur = cfg.get(key, "")
         v = input(f"{prompt} [{cur}]: ").strip()

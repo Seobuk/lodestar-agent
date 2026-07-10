@@ -8,6 +8,7 @@
 """
 
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -28,6 +29,18 @@ _last_status = "시작 중"
 _stop = threading.Event()
 
 
+def save_local(src: Path, name: str, dest_dir: Path | None = None) -> Path:
+    """PDF를 exe 폴더에 저장(기본 모드). exe를 구글 드라이브 동기 폴더에 두면
+    데스크톱 클라이언트가 알아서 업로드한다 — Drive API·자격증명 불필요."""
+    dest_dir = dest_dir or C.exe_path().parent
+    dest, n = dest_dir / name, 2
+    while dest.exists():  # 같은 논문 재요청 등 이름 충돌 시 (2), (3)…
+        dest = dest_dir / f"{Path(name).stem} ({n}){Path(name).suffix}"
+        n += 1
+    shutil.move(str(src), str(dest))
+    return dest
+
+
 def process_one(api: Lodestar, cfg: dict, item: dict) -> None:
     global _last_status
     rid, text = item["id"], (item.get("doi") or item.get("input") or "")
@@ -39,13 +52,18 @@ def process_one(api: Lodestar, cfg: dict, item: dict) -> None:
         with tempfile.TemporaryDirectory(prefix="lodestar_") as td:
             got = fetch_pdf(item.get("input", text), Path(td),
                             cfg.get("unpaywall_email", ""))
-            _last_status = f"업로드 중: {got['file_name'][:40]}"
-            link = upload_pdf(got["path"], got["file_name"],
-                              cfg["gdrive_folder_id"],
-                              bool(cfg.get("share_anyone", True)))
-        api.report_done(rid, got["title"], link, got["file_name"])
-        C.log(f"완료 [{rid}] → {link}")
-        _last_status = f"완료: {got['file_name'][:40]}"
+            file_name = got["file_name"]
+            if cfg.get("gdrive_folder_id"):  # Drive API 모드(선택)
+                _last_status = f"업로드 중: {file_name[:40]}"
+                link = upload_pdf(got["path"], file_name,
+                                  cfg["gdrive_folder_id"],
+                                  bool(cfg.get("share_anyone", True)))
+            else:  # 기본: exe 폴더 저장 (동기 폴더면 자동 업로드)
+                dest = save_local(got["path"], file_name)
+                file_name, link = dest.name, ""
+        api.report_done(rid, got["title"], link, file_name)
+        C.log(f"완료 [{rid}] → {link or file_name}")
+        _last_status = f"완료: {file_name[:40]}"
     except (DownloadError, DriveError) as e:
         api.report_failed(rid, str(e))
         C.log(f"실패 [{rid}] {e}")

@@ -25,21 +25,28 @@ Lodestar repo에 포함돼 있다. 필요한 것은 **토큰 하나**: Lodestar 
 
 ## B. 학교 PC 에이전트 설치
 
-### 1) Google Drive 자격증명 — Service Account 권장 (무인 PC에 최적)
+### 1) 저장 방식 — 기본은 "exe 폴더에 저장" (Drive 설정 불필요)
+받은 PDF는 기본적으로 **exe가 있는 폴더**에 저장된다. 그래서 **exe를 구글
+드라이브 데스크톱의 동기화 폴더에 넣어두면** 별도 API·자격증명 없이 자동으로
+드라이브에 올라간다 — 이것이 권장 방식이다.
+
+<details>
+<summary>(선택) Drive API 업로드 모드 — 마법사에서 폴더를 지정한 경우만</summary>
+
 1. [GCP 콘솔] 프로젝트 선택 → **Drive API 사용 설정**
 2. IAM → 서비스 계정 → 새로 만들기 → 키(JSON) 다운로드
 3. 다운로드한 JSON을 `%APPDATA%\LodestarAgent\service_account.json` 으로 저장
 4. **대상 Drive 폴더를 SA 이메일(…@…iam.gserviceaccount.com)에 '편집자'로 공유**
 
-> 브라우저 로그인·토큰 만료가 없어 무인 운용에 안정적. 일반 OAuth를 쓰려면
-> 대신 `client_secret.json`(데스크톱 앱)을 같은 폴더에 두면 최초 1회 브라우저
-> 로그인 후 자동 갱신된다.
+> 일반 OAuth를 쓰려면 대신 `client_secret.json`(데스크톱 앱)을 같은 폴더에
+> 두면 최초 1회 브라우저 로그인 후 자동 갱신된다.
+</details>
 
 ### 2) 실행
 **가장 쉬운 방법(토큰 내장 exe)**: Lodestar `/token`에서 토큰 발급 직후
 **"에이전트 exe (토큰 내장)"** 버튼 — 서버 주소·토큰이 exe 꼬리에 심어져
-(GitHub Release가 하나 이상 있어야 동작), 실행하면 마법사에 미리 채워진다.
-Drive 폴더만 넣으면 끝.
+있다. 받은 exe를 **구글 드라이브 동기 폴더에 넣고** 실행하면 마법사에 전부
+미리 채워져 있으니 "저장 후 검증"만 누르면 끝.
 **exe 방식(배포용)**: `agent/`에서 `build.bat` → `dist\LodestarAgent.exe` 실행
 **Python 방식(바로 시험)**:
 ```bat
@@ -49,9 +56,10 @@ python main.py
 ```
 
 최초 실행 시 설정 마법사가 뜬다: Lodestar URL / `lsk_` 토큰 / Drive 폴더
-URL(또는 ID) / 공개링크 여부 / 부팅 자동시작. **저장 후 검증**이 토큰·폴더
-접근을 즉시 확인해 준다. 이후 트레이 아이콘(별 모양)으로 상주하며 상태 확인,
-로그 보기, 업데이트 확인, 자동시작 토글이 가능하다.
+URL(선택 — 비우면 exe 폴더 저장) / 공개링크 여부 / 부팅 자동시작.
+**저장 후 검증**이 토큰(과 폴더를 지정했다면 접근권한)을 즉시 확인해 준다.
+이후 트레이 아이콘(별 모양)으로 상주하며 상태 확인, 로그 보기, 업데이트 확인,
+자동시작 토글이 가능하다.
 
 - 부팅 자동시작: HKCU Run 키(관리자 권한 불필요), 마법사 체크박스로 on/off
 - 로그: `%APPDATA%\LodestarAgent\agent.log`
