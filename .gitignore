@@ -1,0 +1,7 @@
+__pycache__/
+dist/
+build/
+*.spec
+service_account.json
+client_secret.json
+token.json
