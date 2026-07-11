@@ -53,12 +53,21 @@ def process_one(api: Lodestar, cfg: dict, item: dict) -> None:
             got = fetch_pdf(item.get("input", text), Path(td),
                             cfg.get("unpaywall_email", ""))
             file_name = got["file_name"]
-            if cfg.get("gdrive_folder_id"):  # Drive API 모드(선택)
+            if cfg.get("gdrive_folder_id"):  # 직접 Drive API 모드(고급, 자체 자격증명)
                 _last_status = f"업로드 중: {file_name[:40]}"
                 link = upload_pdf(got["path"], file_name,
                                   cfg["gdrive_folder_id"],
                                   bool(cfg.get("share_anyone", True)))
-            else:  # 기본: exe 폴더 저장 (동기 폴더면 자동 업로드)
+            elif cfg.get("server_upload", True):  # 기본: 서버 업로드(링크 자동)
+                _last_status = f"업로드 중: {file_name[:40]}"
+                try:
+                    link = api.upload_pdf_via_server(got["path"], file_name)
+                except Exception as e:
+                    # 서버 미설정·일시 장애 — 받은 PDF는 살리고 로컬 저장 폴백
+                    C.log(f"서버 업로드 실패 → exe 폴더 저장 폴백: {e}")
+                    dest = save_local(got["path"], file_name)
+                    file_name, link = dest.name, ""
+            else:  # exe 폴더 저장 (동기 폴더면 자동 업로드)
                 dest = save_local(got["path"], file_name)
                 file_name, link = dest.name, ""
         api.report_done(rid, got["title"], link, file_name)
@@ -73,9 +82,9 @@ def process_one(api: Lodestar, cfg: dict, item: dict) -> None:
         C.log(f"실패(예외) [{rid}] {e}")
 
 
-def loop() -> None:
+def loop(cfg: dict) -> None:
+    # cfg는 트레이와 공유하는 dict — 트레이 "저장 모드" 전환이 다음 건부터 반영된다.
     global _last_status
-    cfg = C.load()
     api = Lodestar(cfg["lodestar_url"], cfg["api_token"], cfg["agent_id"])
     last_update = 0.0
     try:
@@ -109,22 +118,18 @@ def loop() -> None:
 
 
 def run_tray(cfg: dict) -> None:
-    """pystray 트레이 아이콘. 미설치면 콘솔 모드로 폴백."""
+    """pystray 트레이 아이콘(우하단 알림 영역 상주). 미설치면 콘솔 모드로 폴백."""
     try:
         import pystray
-        from PIL import Image, ImageDraw
+        from robot_icon import draw_humanoid
     except Exception:
         C.log("pystray/Pillow 없음 → 콘솔 모드")
-        loop()
+        loop(cfg)
         return
 
-    img = Image.new("RGB", (64, 64), "#1e3a8a")
-    d = ImageDraw.Draw(img)
-    d.polygon([(32, 8), (40, 26), (58, 26), (44, 38), (50, 56),
-               (32, 45), (14, 56), (20, 38), (6, 26), (24, 26)],
-              fill="#facc15")  # lodestar = 길잡이 별
+    img = draw_humanoid(64)  # 휴머노이드 로봇 — exe 아이콘(.ico)과 같은 그림
 
-    t = threading.Thread(target=loop, daemon=True)
+    t = threading.Thread(target=loop, args=(cfg,), daemon=True)
     t.start()
 
     def status_text(_):
@@ -138,6 +143,14 @@ def run_tray(cfg: dict) -> None:
 
     def toggle_auto(_i, _m):
         (autostart.disable if autostart.is_enabled() else autostart.enable)()
+
+    def set_mode(server: bool):
+        # loop()와 같은 cfg dict를 고치므로 다음 논문부터 즉시 적용 + 저장.
+        def handler(_i, _m):
+            cfg["server_upload"] = server
+            C.save(cfg)
+            C.log(f"저장 모드 변경: {'팀 Drive 업로드' if server else 'exe 폴더 저장'}")
+        return handler
 
     def check_update(_i, _m):
         if updater.check_and_apply(cfg.get("github_repo", "")):
@@ -153,6 +166,21 @@ def run_tray(cfg: dict) -> None:
         menu=pystray.Menu(
             pystray.MenuItem(status_text, None, enabled=False),
             pystray.MenuItem("논문 페이지 열기", open_web),
+            pystray.MenuItem("저장 모드", pystray.Menu(
+                pystray.MenuItem(
+                    "팀 Drive 업로드 (링크 자동)", set_mode(True),
+                    checked=lambda _: bool(cfg.get("server_upload", True)),
+                    radio=True),
+                pystray.MenuItem(
+                    "exe 폴더 저장", set_mode(False),
+                    checked=lambda _: not cfg.get("server_upload", True),
+                    radio=True),
+                # 고급 직접 Drive API 모드(폴더 지정)는 위 선택보다 우선한다
+                pystray.MenuItem(
+                    "⚠ 직접 Drive API 모드(폴더 지정)가 우선 적용 중",
+                    None, enabled=False,
+                    visible=lambda _: bool(cfg.get("gdrive_folder_id"))),
+            )),
             pystray.MenuItem("로그 보기", open_log),
             pystray.MenuItem("업데이트 확인", check_update),
             pystray.MenuItem(
@@ -186,7 +214,7 @@ def main() -> None:
             pass
 
     if "--console" in args:
-        loop()
+        loop(cfg)
     else:
         run_tray(cfg)
 

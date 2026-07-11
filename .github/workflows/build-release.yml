@@ -1,0 +1,65 @@
+# 태그(vX.Y.Z) 푸시 → windows 러너가 Seobuk/lodestar(공개)의 최신 agent/ 소스로
+# LodestarAgent.exe를 빌드해 릴리스에 첨부한다. 집/학교 PC에서 수동 빌드 불필요.
+#
+# 릴리스 절차: lodestar repo에서 agent/version.py 올려 main 머지
+#   → 이 저장소에서 `git tag vX.Y.Z && git push origin vX.Y.Z`
+# (버전-태그 불일치는 빌드가 실패해 잘못된 릴리스를 막는다)
+# workflow_dispatch로 돌리면 릴리스 없이 아티팩트만 만든다(빌드 확인용).
+name: build-release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      # 소스 원본은 Seobuk/lodestar의 agent/ — 이 저장소의 사본이 아니라
+      # 항상 lodestar main 기준으로 빌드한다(사본 동기화 지연 무관).
+      - uses: actions/checkout@v4
+        with:
+          repository: Seobuk/lodestar
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 태그와 agent/version.py 일치 확인
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: python
+        run: |
+          import os, re
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          src = open("agent/version.py", encoding="utf-8").read()
+          ver = re.search(r'VERSION = "([^"]+)"', src).group(1)
+          assert ver == tag, f"agent/version.py({ver}) != tag({tag}) — lodestar main에 버전 올렸는지 확인"
+
+      - name: 빌드 (build.bat과 동일 절차)
+        working-directory: agent
+        run: |
+          pip install -r requirements.txt pyinstaller
+          python robot_icon.py icon.ico
+          pyinstaller --noconfirm --onefile --windowed --name LodestarAgent --icon icon.ico --hidden-import pystray._win32 main.py
+
+      - name: 릴리스 생성 + exe 첨부
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$env:GITHUB_REF_NAME" agent/dist/LodestarAgent.exe
+          --repo "$env:GITHUB_REPOSITORY"
+          --title "$env:GITHUB_REF_NAME"
+          --notes "자동 빌드(Seobuk/lodestar main 기준). 에이전트가 6시간 주기로 자가 업데이트합니다."
+
+      - name: 아티팩트 업로드 (수동 실행 시 빌드 확인용)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: LodestarAgent
+          path: agent/dist/LodestarAgent.exe

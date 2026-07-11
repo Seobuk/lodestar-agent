@@ -136,6 +136,32 @@ class TestSaveLocal(unittest.TestCase):
             self.assertFalse(src.exists())  # move라 원본은 사라져야 함
 
 
+class TestRobotIcon(unittest.TestCase):
+    def test_draw_sizes_and_visible_pixels(self):
+        from robot_icon import draw_humanoid
+
+        for n in (16, 64, 256):
+            img = draw_humanoid(n)
+            self.assertEqual((img.size, img.mode), ((n, n), "RGBA"))
+            # 투명 캔버스에 실제로 그려졌는지 — 불투명 픽셀이 있어야 한다.
+            self.assertTrue(any(px[3] > 0 for px in img.getdata()))
+
+    def test_save_ico_multisize(self):
+        import tempfile
+
+        from PIL import Image
+
+        from robot_icon import save_ico
+
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "icon.ico"
+            save_ico(str(p))
+            with Image.open(p) as ico:
+                self.assertEqual(ico.format, "ICO")
+                self.assertIn((16, 16), ico.info["sizes"])
+                self.assertIn((256, 256), ico.info["sizes"])
+
+
 class TestFolderIdParse(unittest.TestCase):
     def test_url(self):
         self.assertEqual(

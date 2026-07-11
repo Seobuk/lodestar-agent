@@ -11,10 +11,15 @@ APP_NAME = "LodestarAgent"
 DEFAULTS = {
     "lodestar_url": "",          # 예: https://lodestar.example.com (끝 슬래시 없이)
     "api_token": "",             # Lodestar /token 페이지에서 발급한 lsk_ 토큰
-    # 선택 — 비우면(기본) PDF를 exe 폴더에 저장한다. exe를 구글 드라이브 동기
-    # 폴더에 두면 그 자체로 업로드 완성. 값을 넣으면 기존 Drive API 업로드 모드.
+    # 기본 — 서버 업로드 모드: lsk_ 토큰만으로 서버가 열어 준 세션에 PDF를 올려
+    # 팀 Drive(첨부 폴더)에 저장, /papers 카드에 팀 전용 링크가 자동으로 뜬다.
+    # GCP 자격증명 불필요. 서버 미설정·오류 시엔 exe 폴더 저장으로 자동 폴백.
+    "server_upload": True,
+    # 고급 — 값을 넣으면 자체 자격증명(service_account.json 등)으로 직접
+    # Drive API 업로드(서버 업로드보다 우선). 비우고 server_upload도 끄면
+    # exe 폴더에 저장 — exe를 구글 드라이브 동기 폴더에 두면 그 자체로 업로드 완성.
     "gdrive_folder_id": "",
-    "share_anyone": True,        # (Drive API 모드) '링크가 있는 모든 사용자 보기' 부여
+    "share_anyone": True,        # (직접 Drive API 모드) '링크가 있는 모든 사용자 보기' 부여
     "poll_interval_sec": 20,
     "agent_id": socket.gethostname(),
     "unpaywall_email": "",       # OA 폴백용(선택). 비우면 Unpaywall 스킵.
