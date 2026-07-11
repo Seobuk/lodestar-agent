@@ -20,7 +20,7 @@ DEFAULTS = {
     # exe 폴더에 저장 — exe를 구글 드라이브 동기 폴더에 두면 그 자체로 업로드 완성.
     "gdrive_folder_id": "",
     "share_anyone": True,        # (직접 Drive API 모드) '링크가 있는 모든 사용자 보기' 부여
-    "poll_interval_sec": 20,
+    "poll_interval_sec": 60,     # Vercel 함수 호출 절약(월 26만→9만). 60이면 충분히 즉각적
     "agent_id": socket.gethostname(),
     "unpaywall_email": "",       # OA 폴백용(선택). 비우면 Unpaywall 스킵.
     "github_repo": "Seobuk/lodestar-agent",  # 자동 업데이트 릴리스 저장소
@@ -73,6 +73,15 @@ def _embedded_config() -> dict:
         return {}
 
 
+def _migrate(cfg: dict) -> dict:
+    """구버전 저장 설정의 기본값 이전. 마법사가 전체 cfg를 저장하므로 옛
+    기본값이 파일에 박제된다 — 사용자가 노출된 적 없는 값만 조용히 이전한다."""
+    # 폴링 20초는 v0.2.1까지의 기본값(마법사 비노출) — 60초로 이전(호출량 1/3)
+    if cfg.get("poll_interval_sec") == 20:
+        cfg["poll_interval_sec"] = 60
+    return cfg
+
+
 def load() -> dict:
     cfg = dict(DEFAULTS)
     cfg.update(_embedded_config())  # exe 내장값은 기본값 취급 — 저장된 설정이 우선
@@ -82,7 +91,7 @@ def load() -> dict:
             cfg.update(json.loads(p.read_text(encoding="utf-8")))
         except Exception:
             pass
-    return cfg
+    return _migrate(cfg)
 
 
 def save(cfg: dict) -> None:

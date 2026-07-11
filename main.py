@@ -88,9 +88,9 @@ def loop(cfg: dict) -> None:
     api = Lodestar(cfg["lodestar_url"], cfg["api_token"], cfg["agent_id"])
     last_update = 0.0
     try:
-        interval = int(cfg.get("poll_interval_sec", 20))
+        interval = int(cfg.get("poll_interval_sec", 60))
     except (TypeError, ValueError):
-        interval = 20  # config.json을 손으로 고치다 잘못된 값을 넣어도 죽지 않게
+        interval = 60  # config.json을 손으로 고치다 잘못된 값을 넣어도 죽지 않게
     C.log(f"Lodestar Agent v{VERSION} 시작 (agent_id={cfg['agent_id']})")
     while not _stop.is_set():
         now = time.time()

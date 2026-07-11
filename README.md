@@ -14,7 +14,7 @@
         │  DOI/URL 입력 → PaperRequest(pending)
         ▼
 [Lodestar API]  /api/agent/papers  (Bearer lsk_ 토큰, 기존 토큰 시스템 재사용)
-        ▲  20초 폴링 · 원자적 claim          │ done + Drive 링크 회신
+        ▲  60초 폴링 · 원자적 claim          │ done + Drive 링크 회신
         │                                    ▼
 [학교 PC: LodestarAgent (트레이 상주, 부팅 자동시작, GitHub Releases 자동 업데이트)]
    DOI 해석 → citation_pdf_url/퍼블리셔 규칙(IEEE·ScienceDirect·Wiley·Springer·
@@ -98,14 +98,20 @@ python main.py
 두 대가 중복 처리하는 일은 없다 — 학교 PC가 꺼져 있으면 집 PC가 OA/arXiv
 논문이라도 처리해 준다.
 
-## C. 자동 업데이트 배포 (집에서 → 학교 PC)
+## C. 자동 업데이트 배포 (수동 빌드 불필요)
 
-1. `agent/version.py`의 `VERSION` 올리기 (예: `0.2.1`)
-2. `build.bat`으로 `LodestarAgent.exe` 빌드
-3. GitHub `Seobuk/lodestar-agent` 저장소(public)에 **Release 태그 `v0.2.1`**
-   생성, exe를 자산으로 첨부
+1. `agent/version.py`의 `VERSION` 올려 lodestar main에 머지
+2. `agent/`의 파일들을 `Seobuk/lodestar-agent` 저장소 루트로 **동기화(복사·
+   커밋·푸시)** — lodestar가 private라 워크플로가 직접 체크아웃하지 못한다
+3. `Seobuk/lodestar-agent` → Actions 탭 → **build-release "Run workflow"**
+   실행(또는 `vX.Y.Z` 태그 푸시) — windows 러너가 exe를 빌드하고 릴리스
+   `v{VERSION}`에 자동 첨부한다(`.github/workflows/build-release.yml`.
+   버전-태그 불일치는 빌드 실패로 차단, 같은 버전 재릴리스는 기존 릴리스
+   삭제 후)
 4. 학교 PC 에이전트가 부팅 시 + 6시간마다 확인 → 스스로 교체 후 재시작
    (트레이 "업데이트 확인"으로 즉시 적용도 가능)
+
+수동으로 빌드하려면 `build.bat` → `dist\LodestarAgent.exe`를 릴리스에 직접 첨부.
 
 저장소 이름을 바꾸려면 `%APPDATA%\LodestarAgent\config.json`의
 `github_repo` 값을 수정.

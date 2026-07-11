@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from config import _parse_overlay
+from config import _migrate, _parse_overlay
 from downloader import _candidates_from_landing, normalize_doi, sanitize_filename
 from setup_gui import _folder_id
 from updater import _ver_tuple
@@ -134,6 +134,16 @@ class TestSaveLocal(unittest.TestCase):
             self.assertEqual(dest.name, "a (2).pdf")
             self.assertEqual(dest.read_bytes(), b"%PDF-new")
             self.assertFalse(src.exists())  # move라 원본은 사라져야 함
+
+
+class TestConfigMigrate(unittest.TestCase):
+    def test_old_default_20_becomes_60(self):
+        self.assertEqual(_migrate({"poll_interval_sec": 20})["poll_interval_sec"], 60)
+
+    def test_custom_values_kept(self):
+        # 사용자가 손으로 넣은 값(20 외)은 건드리지 않는다
+        self.assertEqual(_migrate({"poll_interval_sec": 30})["poll_interval_sec"], 30)
+        self.assertEqual(_migrate({"poll_interval_sec": 60})["poll_interval_sec"], 60)
 
 
 class TestRobotIcon(unittest.TestCase):
