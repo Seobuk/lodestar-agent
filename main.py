@@ -3,8 +3,11 @@
 실행 모드:
   main.py             설정 없으면 마법사 → 트레이(가능하면) 상주
   main.py --setup     설정 마법사 강제
+  main.py --admin     트레이에 관리 메뉴 표시(저장 모드·로그·업데이트·자동시작)
   main.py --console   트레이 없이 콘솔 모드
   main.py --minimized 부팅 자동시작용(마법사 생략, 조용히 시작)
+
+PC 사용자 무간섭 원칙: 알림·팝업 없음, 기본 트레이 메뉴는 상태+종료 둘뿐.
 """
 
 import os
@@ -117,8 +120,13 @@ def loop(cfg: dict) -> None:
         _stop.wait(interval)
 
 
-def run_tray(cfg: dict) -> None:
-    """pystray 트레이 아이콘(우하단 알림 영역 상주). 미설치면 콘솔 모드로 폴백."""
+def run_tray(cfg: dict, admin: bool = False) -> None:
+    """pystray 트레이 아이콘(우하단 알림 영역 상주). 미설치면 콘솔 모드로 폴백.
+
+    PC 사용자를 신경 쓰이게 하지 않는 게 원칙 — 알림·팝업은 일절 없고,
+    기본 메뉴는 "켜져 있다는 표시(상태) + 종료" 둘뿐이다. 관리 항목(저장 모드
+    전환·로그·업데이트 등)은 설치자가 --admin으로 실행했을 때만 보인다.
+    """
     try:
         import pystray
         from robot_icon import draw_humanoid
@@ -161,10 +169,9 @@ def run_tray(cfg: dict) -> None:
         _stop.set()
         icon_.stop()
 
-    icon = pystray.Icon(
-        "LodestarAgent", img, "Lodestar Agent",
-        menu=pystray.Menu(
-            pystray.MenuItem(status_text, None, enabled=False),
+    items = [pystray.MenuItem(status_text, None, enabled=False)]
+    if admin:  # 관리 메뉴 — --admin 실행 시에만 (평소엔 PC 사용자에게 비노출)
+        items += [
             pystray.MenuItem("논문 페이지 열기", open_web),
             pystray.MenuItem("저장 모드", pystray.Menu(
                 pystray.MenuItem(
@@ -186,8 +193,11 @@ def run_tray(cfg: dict) -> None:
             pystray.MenuItem(
                 lambda _: f"부팅 자동시작 {'✓' if autostart.is_enabled() else '✗'}",
                 toggle_auto),
-            pystray.MenuItem("종료", quit_),
-        ),
+        ]
+    items.append(pystray.MenuItem("종료", quit_))
+    icon = pystray.Icon(
+        "LodestarAgent", img, "Lodestar Agent — 논문 자동 다운로드",
+        menu=pystray.Menu(*items),
     )
     icon.run()
 
@@ -216,7 +226,7 @@ def main() -> None:
     if "--console" in args:
         loop(cfg)
     else:
-        run_tray(cfg)
+        run_tray(cfg, admin="--admin" in args)
 
 
 if __name__ == "__main__":
