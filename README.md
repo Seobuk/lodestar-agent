@@ -1,8 +1,8 @@
-> **이 저장소는 릴리스 호스트입니다.** 소스 원본은
-> [Seobuk/lodestar](https://github.com/Seobuk/lodestar)의 `agent/` 디렉토리이고,
-> **태그(vX.Y.Z)를 푸시하면 GitHub Actions가 lodestar main 기준으로 exe를 자동
-> 빌드해 릴리스에 첨부한다**(`.github/workflows/build-release.yml`) — 수동 빌드
-> 불필요. 여기 있는 소스 사본은 참고용 스냅샷이라 최신이 아닐 수 있다.
+> **이 저장소는 릴리스 호스트입니다.** 소스 원본은 Seobuk/lodestar(private)의
+> `agent/` 디렉토리 — 릴리스 전에 그 파일들을 이 저장소 루트로 **동기화(복사·
+> 커밋)**한 뒤, Actions 탭에서 **build-release "Run workflow"**(또는 vX.Y.Z 태그
+> 푸시)를 실행하면 windows 러너가 exe를 자동 빌드해 릴리스에 첨부한다
+> (`.github/workflows/build-release.yml`) — 수동 빌드 불필요.
 
 # Lodestar Paper Pipeline
 
