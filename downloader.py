@@ -20,15 +20,39 @@ DOI를 복구해 3)의 OA 폴백과 파일명 메타(Crossref)를 살린다.
 
 기관 IP(학교/연구소 네트워크)에서 실행되어야 구독 논문이 열린다.
 응답 첫 바이트가 %PDF 인지 반드시 검증한다.
+
+HTTP는 curl_cffi로 크롬 TLS 지문을 흉내내 요청한다 — Cloudflare가 TLS
+지문만 보고 즉시 403을 쏘는 사이트(MDPI 등)를 뚫기 위함. curl_cffi가
+없으면 requests로 폴백한다(그 경우 Cloudflare 사이트만 실패).
 """
 
 import html
 import re
 import unicodedata
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import requests
+
+# Cloudflare 등은 클라이언트의 TLS 지문(JA3)만 보고 곧바로 403을 쏜다 —
+# MDPI가 대표적(응답이 1초 안에 403). requests/urllib3의 지문은 브라우저와
+# 확연히 달라 통째로 막힌다. curl_cffi로 실제 크롬 TLS를 흉내내면 통과한다.
+# 미설치·로드 실패 시 requests로 폴백(이땐 Cloudflare 사이트만 실패하고
+# IEEE·Elsevier·arXiv 등 나머지는 그대로 동작).
+try:
+    from curl_cffi import CurlError as _CurlError
+    from curl_cffi import requests as _cffi
+    _IMPERSONATE = "chrome"
+except Exception:
+    _cffi = None
+    _CurlError = None
+    _IMPERSONATE = None
+
+# 세션 요청에서 날 수 있는 네트워크 예외(requests + curl_cffi 양쪽).
+# curl_cffi의 RequestsError는 CurlError를 상속하므로 CurlError 하나로 커버된다.
+_HTTP_ERRORS = (requests.RequestException,) + (
+    (_CurlError,) if isinstance(_CurlError, type) else ()
+)
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
@@ -62,22 +86,37 @@ def normalize_doi(text: str) -> str | None:
     return re.split(r"[?#&]", m.group(1))[0].rstrip(").,;")
 
 
-def _session() -> requests.Session:
-    s = requests.Session()
-    s.headers.update({
-        "User-Agent": UA,
+def _session():
+    """브라우저 TLS를 흉내내는 curl_cffi 세션(가능하면) — Cloudflare(MDPI 등)
+    우회의 핵심. 미설치 시 requests 세션으로 폴백한다. 둘 다 .get/.headers·
+    쿠키 지속을 지원해 이후 코드가 동일하게 동작한다."""
+    headers = {
         "Accept": "text/html,application/pdf,application/xhtml+xml,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
-    })
+    }
+    if _cffi is not None:
+        # impersonate가 크롬용 User-Agent·헤더·TLS 지문을 함께 세팅한다
+        # (UA를 따로 덮어쓰면 TLS와 어긋나므로 건드리지 않는다).
+        s = _cffi.Session(impersonate=_IMPERSONATE)
+        s.headers.update(headers)
+        return s
+    headers["User-Agent"] = UA
+    s = requests.Session()
+    s.headers.update(headers)
     return s
 
 
-def _is_pdf(resp: requests.Response) -> bool:
+def _ok(resp) -> bool:
+    # requests·curl_cffi 응답 모두 .status_code를 갖는다(.ok는 버전차 있음).
+    return getattr(resp, "status_code", 0) < 400
+
+
+def _is_pdf(resp) -> bool:
     head = resp.content[:5] if resp.content else b""
     return head.startswith(b"%PDF")
 
 
-def _try_pdf(s: requests.Session, url: str, referer: str | None,
+def _try_pdf(s, url: str, referer: str | None,
              _depth: int = 0) -> bytes | None:
     """url을 PDF로 시도. 응답이 PDF가 아니라 HTML 인터스티셜이면 그 안의
     실제 PDF 링크(IEEE stampPDF의 <iframe>, MDPI 등 다운로드 페이지의
@@ -85,7 +124,7 @@ def _try_pdf(s: requests.Session, url: str, referer: str | None,
     try:
         h = {"Referer": referer} if referer else {}
         r = s.get(url, headers=h, timeout=90, allow_redirects=True)
-        if not r.ok:
+        if not _ok(r):
             return None
         if _is_pdf(r):
             return r.content
@@ -95,10 +134,10 @@ def _try_pdf(s: requests.Session, url: str, referer: str | None,
         m = IFRAME_SRC_RE.search(body) or META_REFRESH_RE.search(body)
         if m:
             nxt = html.unescape(m.group(1).decode("utf-8", "replace"))
-            inner = requests.compat.urljoin(r.url, nxt)
+            inner = urljoin(r.url, nxt)
             if inner != r.url:  # 자기 자신으로 도는 리프레시는 무한루프
                 return _try_pdf(s, inner, r.url, _depth + 1)
-    except requests.RequestException:
+    except _HTTP_ERRORS:
         pass
     return None
 
@@ -289,11 +328,11 @@ def fetch_pdf(user_input: str, workdir: Path, unpaywall_email: str = "") -> dict
     try:
         r = s.get(start_url, timeout=90, allow_redirects=True)
         landing_url = r.url
-        if r.ok and _is_pdf(r):  # 드물게 DOI가 바로 PDF로 감
+        if _ok(r) and _is_pdf(r):  # 드물게 DOI가 바로 PDF로 감
             page, pdf_direct = "", r.content
         else:
-            page, pdf_direct = (r.text if r.ok else ""), None
-    except requests.RequestException as e:
+            page, pdf_direct = (r.text if _ok(r) else ""), None
+    except _HTTP_ERRORS as e:
         raise DownloadError(f"랜딩 페이지 접속 실패: {e}") from e
 
     # URL로 들어왔으면(입력에 DOI가 없으면) 랜딩 페이지의 citation_doi 메타에서
@@ -307,7 +346,7 @@ def fetch_pdf(user_input: str, workdir: Path, unpaywall_email: str = "") -> dict
     pdf = pdf_direct
     if not pdf:
         for cand in _candidates_from_landing(landing_url, page):
-            pdf = _try_pdf(s, requests.compat.urljoin(landing_url, cand), landing_url)
+            pdf = _try_pdf(s, urljoin(landing_url, cand), landing_url)
             if pdf:
                 break
 

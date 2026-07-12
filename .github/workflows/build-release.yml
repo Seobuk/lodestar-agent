@@ -52,7 +52,7 @@ jobs:
         run: |
           pip install -r requirements.txt pyinstaller
           python robot_icon.py icon.ico
-          pyinstaller --noconfirm --onefile --windowed --name LodestarAgent --icon icon.ico --hidden-import pystray._win32 main.py
+          pyinstaller --noconfirm --onefile --windowed --name LodestarAgent --icon icon.ico --hidden-import pystray._win32 --collect-all curl_cffi main.py
 
       - name: 릴리스 생성 + exe 첨부
         env:

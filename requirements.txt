@@ -1,4 +1,5 @@
 requests>=2.31
+curl_cffi>=0.7            # 브라우저 TLS 흉내(Cloudflare/MDPI 우회). 없으면 requests 폴백
 google-auth>=2.30
 google-auth-oauthlib>=1.2   # client_secret.json(OAuth) 방식일 때만 실제 사용
 pystray>=0.19               # 트레이 아이콘(선택 — 없으면 콘솔 모드)
