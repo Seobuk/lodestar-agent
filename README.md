@@ -17,8 +17,9 @@
         ▲  60초 폴링 · 원자적 claim          │ done + Drive 링크 회신
         │                                    ▼
 [학교 PC: LodestarAgent (트레이 상주, 부팅 자동시작, GitHub Releases 자동 업데이트)]
-   DOI 해석 → citation_pdf_url/퍼블리셔 규칙(IEEE·ScienceDirect·Wiley·Springer·
-   MDPI·ACM·arXiv) → %PDF 검증 → 업로드(기본: 서버 경유 팀 Drive, 링크 자동)
+   DOI 해석 → citation_pdf_url/퍼블리셔 규칙(IEEE·Elsevier·Wiley·Springer·
+   MDPI·ACM·T&F·SAGE·ACS·APS·IOP·Nature·Science·Frontiers·arXiv 등) →
+   %PDF 검증 → 업로드(기본: 서버 경유 팀 Drive, 링크 자동)
 ```
 
 ---

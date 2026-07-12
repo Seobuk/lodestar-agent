@@ -112,6 +112,106 @@ class TestCandidateUrls(unittest.TestCase):
         )
         self.assertNotIn("https://www.mdpi.com/2218-6581/14/3/28/pdf/pdf", cands)
 
+    def test_taylor_francis_doi_pdf(self):
+        cands = _candidates_from_landing(
+            "https://www.tandfonline.com/doi/full/10.1080/17521742.2012.699942", ""
+        )
+        self.assertIn(
+            "https://www.tandfonline.com/doi/pdf/10.1080/17521742.2012.699942",
+            cands,
+        )
+
+    def test_sage_doi_pdf_from_abs(self):
+        cands = _candidates_from_landing(
+            "https://journals.sagepub.com/doi/abs/10.1177/0887302X07303626", ""
+        )
+        self.assertIn(
+            "https://journals.sagepub.com/doi/pdf/10.1177/0887302X07303626",
+            cands,
+        )
+
+    def test_acs_doi_pdf_bare(self):
+        cands = _candidates_from_landing(
+            "https://pubs.acs.org/doi/10.1021/acs.jctc.4c00001", ""
+        )
+        self.assertIn(
+            "https://pubs.acs.org/doi/pdf/10.1021/acs.jctc.4c00001", cands
+        )
+
+    def test_aps_abstract_to_pdf(self):
+        cands = _candidates_from_landing(
+            "https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.132.010001",
+            "",
+        )
+        self.assertIn(
+            "https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.132.010001",
+            cands,
+        )
+
+    def test_nature_pdf_suffix(self):
+        cands = _candidates_from_landing(
+            "https://www.nature.com/articles/s41586-024-00001-2", ""
+        )
+        self.assertIn(
+            "https://www.nature.com/articles/s41586-024-00001-2.pdf", cands
+        )
+
+    def test_iop_article_pdf(self):
+        cands = _candidates_from_landing(
+            "https://iopscience.iop.org/article/10.1088/1748-3190/acaa01", ""
+        )
+        self.assertIn(
+            "https://iopscience.iop.org/article/10.1088/1748-3190/acaa01/pdf",
+            cands,
+        )
+
+    def test_science_family_doi_pdf(self):
+        # Science 본지·자매지(Science Robotics/Advances 등) 전부 science.org Atypon.
+        for doi in ("10.1126/science.adk0001",
+                    "10.1126/scirobotics.adn0002",
+                    "10.1126/sciadv.abc0003"):
+            cands = _candidates_from_landing(
+                f"https://www.science.org/doi/{doi}", ""
+            )
+            self.assertIn(f"https://www.science.org/doi/pdf/{doi}", cands)
+
+    def test_nature_family_pdf_suffix(self):
+        # Nature 본지·자매지·npj 전부 nature.com/articles/{id} → .pdf.
+        for aid in ("s41586-024-00001-2",     # Nature
+                    "s41467-024-00002-3",     # Nature Communications
+                    "s41598-024-00003-4",     # Scientific Reports
+                    "s41746-024-00004-5"):    # npj Digital Medicine
+            cands = _candidates_from_landing(
+                f"https://www.nature.com/articles/{aid}", ""
+            )
+            self.assertIn(f"https://www.nature.com/articles/{aid}.pdf", cands)
+
+    def test_frontiers_full_to_pdf(self):
+        cands = _candidates_from_landing(
+            "https://www.frontiersin.org/articles/10.3389/frobt.2024.1500000/full",
+            "",
+        )
+        self.assertIn(
+            "https://www.frontiersin.org/articles/10.3389/frobt.2024.1500000/pdf",
+            cands,
+        )
+
+    def test_biorxiv_full_pdf(self):
+        cands = _candidates_from_landing(
+            "https://www.biorxiv.org/content/10.1101/2024.01.01.573000v1", ""
+        )
+        self.assertIn(
+            "https://www.biorxiv.org/content/10.1101/2024.01.01.573000v1.full.pdf",
+            cands,
+        )
+
+    def test_non_publisher_url_no_atypon_rule(self):
+        # 임의 도메인의 /doi/ URL을 Atypon 규칙이 잘못 건드리지 않아야 한다.
+        cands = _candidates_from_landing(
+            "https://example.org/doi/full/10.9999/x.y.z", ""
+        )
+        self.assertEqual(cands, [])
+
 
 class TestCitationDoiRecovery(unittest.TestCase):
     def test_extracts_own_doi_from_landing_meta(self):
