@@ -17,8 +17,9 @@
         ▲  60초 폴링 · 원자적 claim          │ done + Drive 링크 회신
         │                                    ▼
 [학교 PC: LodestarAgent (트레이 상주, 부팅 자동시작, GitHub Releases 자동 업데이트)]
-   DOI 해석 → citation_pdf_url/퍼블리셔 규칙(IEEE·ScienceDirect·Wiley·Springer·
-   MDPI·ACM·arXiv) → %PDF 검증 → 업로드(기본: 서버 경유 팀 Drive, 링크 자동)
+   DOI 해석 → citation_pdf_url/퍼블리셔 규칙(IEEE·Elsevier·Wiley·Springer·
+   MDPI·ACM·T&F·SAGE·ACS·APS·IOP·Nature·Science·Frontiers·arXiv 등) →
+   %PDF 검증 → 업로드(기본: 서버 경유 팀 Drive, 링크 자동)
 ```
 
 ---
@@ -86,12 +87,12 @@ python main.py
 **저장 후 검증**이 토큰과 업로드 모드(서버 가용성 또는 폴더 접근권한)를
 즉시 확인해 준다.
 이후 우하단 트레이 아이콘(휴머노이드 로봇)으로 상주한다. **PC 사용자
-무간섭 원칙** — 알림·팝업은 일절 없고, 기본 트레이 메뉴는 상태 표시와
-**종료** 둘뿐("켜져 있다"는 표시 + 끄는 스위치 역할만). 관리 항목(**저장
-모드 전환**(팀 Drive 업로드 ↔ exe 폴더 저장, 재시작 없이 다음 건부터 적용)·
-논문 페이지·로그·업데이트 확인·자동시작 토글)은 `--admin`으로 실행했을
-때만 메뉴에 나타난다. exe 아이콘도 같은 로봇(빌드 시 `robot_icon.py`가
-`icon.ico` 생성).
+무간섭 원칙** — 알림·팝업은 일절 없다. 기본 우클릭 메뉴는 **설명("Seobuk
+공동연구를 위한 논문전달 에이전트 프로그램")·상태·업데이트 확인·종료**
+(업데이트 확인 결과는 팝업 대신 상태줄에 표시). 관리 항목(**저장 모드
+전환**(팀 Drive 업로드 ↔ exe 폴더 저장, 재시작 없이 다음 건부터 적용)·
+로그·자동시작 토글)은 `--admin`으로 실행했을 때만 메뉴에 나타난다.
+exe 아이콘도 같은 로봇(빌드 시 `robot_icon.py`가 `icon.ico` 생성).
 
 - 부팅 자동시작: HKCU Run 키(관리자 권한 불필요), 마법사 체크박스로 on/off
 - 로그: `%APPDATA%\LodestarAgent\agent.log`
