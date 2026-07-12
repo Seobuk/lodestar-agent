@@ -3,11 +3,12 @@
 실행 모드:
   main.py             설정 없으면 마법사 → 트레이(가능하면) 상주
   main.py --setup     설정 마법사 강제
-  main.py --admin     트레이에 관리 메뉴 표시(저장 모드·로그·업데이트·자동시작)
+  main.py --admin     트레이에 관리 메뉴 표시(저장 모드·로그·자동시작)
   main.py --console   트레이 없이 콘솔 모드
   main.py --minimized 부팅 자동시작용(마법사 생략, 조용히 시작)
 
-PC 사용자 무간섭 원칙: 알림·팝업 없음, 기본 트레이 메뉴는 상태+종료 둘뿐.
+PC 사용자 무간섭 원칙: 알림·팝업 없음. 기본 트레이 메뉴는 설명·상태·
+업데이트 확인·종료.
 """
 
 import os
@@ -123,9 +124,10 @@ def loop(cfg: dict) -> None:
 def run_tray(cfg: dict, admin: bool = False) -> None:
     """pystray 트레이 아이콘(우하단 알림 영역 상주). 미설치면 콘솔 모드로 폴백.
 
-    PC 사용자를 신경 쓰이게 하지 않는 게 원칙 — 알림·팝업은 일절 없고,
-    기본 메뉴는 "켜져 있다는 표시(상태) + 종료" 둘뿐이다. 관리 항목(저장 모드
-    전환·로그·업데이트 등)은 설치자가 --admin으로 실행했을 때만 보인다.
+    PC 사용자를 신경 쓰이게 하지 않는 게 원칙 — 알림·팝업은 일절 없다.
+    기본 우클릭 메뉴는 설명 + 상태 + 업데이트 확인 + 종료.
+    나머지 관리 항목(저장 모드 전환·로그·자동시작 토글)은
+    설치자가 --admin으로 실행했을 때만 보인다.
     """
     try:
         import pystray
@@ -143,9 +145,6 @@ def run_tray(cfg: dict, admin: bool = False) -> None:
     def status_text(_):
         return f"v{VERSION} — {_last_status}"
 
-    def open_web(_i, _m):
-        webbrowser.open(cfg["lodestar_url"] + "/papers")
-
     def open_log(_i, _m):
         webbrowser.open(str(C.log_path()))
 
@@ -161,18 +160,29 @@ def run_tray(cfg: dict, admin: bool = False) -> None:
         return handler
 
     def check_update(_i, _m):
+        # 사용자가 직접 누른 확인이라 결과를 상태줄에 남긴다(팝업 없음 원칙 유지).
+        global _last_status
+        _last_status = "업데이트 확인 중…"
         if updater.check_and_apply(cfg.get("github_repo", "")):
             icon.stop()
             os._exit(0)  # 교체 배치가 move하기 전에 exe 잠금을 확실히 해제
+        _last_status = f"최신 버전입니다 (v{VERSION})"
 
     def quit_(icon_, _m):
         _stop.set()
         icon_.stop()
 
-    items = [pystray.MenuItem(status_text, None, enabled=False)]
+    # 기본 우클릭 메뉴: 설명 + 상태(둘 다 비활성 표시) + 업데이트 확인 + 종료
+    items = [
+        pystray.MenuItem("Seobuk 공동연구를 위한 논문전달 에이전트 프로그램",
+                         None, enabled=False),
+        pystray.MenuItem(status_text, None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("업데이트 확인", check_update),
+    ]
     if admin:  # 관리 메뉴 — --admin 실행 시에만 (평소엔 PC 사용자에게 비노출)
         items += [
-            pystray.MenuItem("논문 페이지 열기", open_web),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("저장 모드", pystray.Menu(
                 pystray.MenuItem(
                     "팀 Drive 업로드 (링크 자동)", set_mode(True),
@@ -189,7 +199,6 @@ def run_tray(cfg: dict, admin: bool = False) -> None:
                     visible=lambda _: bool(cfg.get("gdrive_folder_id"))),
             )),
             pystray.MenuItem("로그 보기", open_log),
-            pystray.MenuItem("업데이트 확인", check_update),
             pystray.MenuItem(
                 lambda _: f"부팅 자동시작 {'✓' if autostart.is_enabled() else '✗'}",
                 toggle_auto),
