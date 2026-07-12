@@ -11,7 +11,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config import _migrate, _parse_overlay
-from downloader import _candidates_from_landing, normalize_doi, sanitize_filename
+from downloader import (
+    CITATION_DOI_RE,
+    IFRAME_SRC_RE,
+    META_REFRESH_RE,
+    _candidates_from_landing,
+    normalize_doi,
+    sanitize_filename,
+)
 from setup_gui import _folder_id
 from updater import _ver_tuple
 
@@ -90,6 +97,56 @@ class TestCandidateUrls(unittest.TestCase):
         page = '<meta name="citation_pdf_url" content="https://pub.example/x.pdf">'
         cands = _candidates_from_landing("https://pub.example/article/1", page)
         self.assertEqual(cands[0], "https://pub.example/x.pdf")
+
+    def test_mdpi_pdf_suffix(self):
+        # MDPI 기사 URL(입력에 DOI 없음)에서 /pdf 후보가 생겨야 한다.
+        cands = _candidates_from_landing(
+            "https://www.mdpi.com/2218-6581/14/3/28", ""
+        )
+        self.assertIn("https://www.mdpi.com/2218-6581/14/3/28/pdf", cands)
+
+    def test_mdpi_pdf_suffix_not_doubled(self):
+        # 이미 /pdf로 끝나면 다시 붙이지 않는다.
+        cands = _candidates_from_landing(
+            "https://www.mdpi.com/2218-6581/14/3/28/pdf", ""
+        )
+        self.assertNotIn("https://www.mdpi.com/2218-6581/14/3/28/pdf/pdf", cands)
+
+
+class TestCitationDoiRecovery(unittest.TestCase):
+    def test_extracts_own_doi_from_landing_meta(self):
+        # URL 입력일 때 랜딩 페이지의 citation_doi로 DOI를 복구한다.
+        page = (
+            '<meta name="citation_title" content="A Paper">'
+            '<meta name="citation_doi" content="10.3390/robotics14030028">'
+        )
+        m = CITATION_DOI_RE.search(page)
+        self.assertIsNotNone(m)
+        self.assertEqual(normalize_doi(m.group(1)), "10.3390/robotics14030028")
+
+    def test_no_citation_doi_meta(self):
+        self.assertIsNone(CITATION_DOI_RE.search("<html><body>no meta</body></html>"))
+
+
+class TestInterstitialFollow(unittest.TestCase):
+    def test_meta_refresh_url_extracted(self):
+        # MDPI류 다운로드 페이지의 meta-refresh에서 실제 PDF 경로를 뽑는다.
+        body = (
+            b'<html><head><meta http-equiv="refresh" '
+            b'content="0; url=/2218-6581/14/3/28/pdf?version=1700000000">'
+            b"</head></html>"
+        )
+        m = META_REFRESH_RE.search(body)
+        self.assertIsNotNone(m)
+        self.assertEqual(
+            m.group(1).decode(), "/2218-6581/14/3/28/pdf?version=1700000000"
+        )
+
+    def test_iframe_src_extracted(self):
+        body = b'<html><body><iframe src="/stampPDF/getPDF.jsp?arnumber=1"></iframe>'
+        m = IFRAME_SRC_RE.search(body)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1).decode(), "/stampPDF/getPDF.jsp?arnumber=1")
 
 
 class TestVersionCompare(unittest.TestCase):
